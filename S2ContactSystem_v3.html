@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>S2A 聯絡單管理系統 - 自動暫存增強版</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
         
@@ -177,8 +178,35 @@
 </head>
 <body class="pb-20">
 
+    <!-- 登入畫面（未認證時顯示） -->
+    <div id="auth-screen" style="display:none;"
+         class="min-h-screen bg-slate-100 flex items-center justify-center">
+      <div class="bg-white rounded-2xl shadow-lg p-10 w-full max-w-sm">
+        <h1 class="text-2xl font-bold text-blue-800 mb-2 text-center">S2A 聯絡單管理系統</h1>
+        <p class="text-slate-500 text-sm text-center mb-8">請登入以使用本系統</p>
+        <label class="block text-sm font-medium text-slate-700 mb-1">電子郵件</label>
+        <input id="auth-email" type="email" autocomplete="email"
+               class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+               placeholder="teacher@school.edu.tw">
+        <label class="block text-sm font-medium text-slate-700 mb-1">密碼</label>
+        <input id="auth-password" type="password" autocomplete="current-password"
+               class="w-full border border-slate-300 rounded-lg px-4 py-2 mb-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+               placeholder="••••••••">
+        <div id="auth-error" class="text-red-500 text-xs mb-4 min-h-[1rem]"></div>
+        <button onclick="handleLogin()"
+                class="w-full bg-blue-700 hover:bg-blue-800 text-white font-bold py-2 rounded-xl transition mb-3">
+          登入
+        </button>
+        <button onclick="handleForgotPassword()"
+                class="w-full text-blue-600 text-sm hover:underline">
+          忘記密碼？
+        </button>
+      </div>
+    </div>
+
     <div id="statusMsg">設定已套用</div>
 
+    <div id="app-screen" style="display:none;">
     <!-- 頂部控制欄 -->
     <div class="no-print sticky top-0 z-[100] bg-white/90 backdrop-blur-md border-b p-4 flex justify-center gap-4 flex-wrap">
         <button type="button" onclick="handlePrint()" class="bg-slate-800 text-white px-6 py-2 rounded-xl hover:bg-black transition font-bold flex items-center shadow-sm">
@@ -190,6 +218,11 @@
         </button>
         <button type="button" onclick="clearDraft()" class="bg-white border border-red-200 text-red-600 px-4 py-2 rounded-xl hover:bg-red-50 transition font-bold shadow-sm">
             清除暫存內容
+        </button>
+        <span id="user-email-display" class="text-xs text-slate-500 self-center hidden"></span>
+        <button type="button" onclick="handleLogout()"
+                class="bg-white border border-slate-300 text-slate-600 px-4 py-2 rounded-xl hover:bg-slate-50 transition font-bold shadow-sm">
+          登出
         </button>
     </div>
 
@@ -328,120 +361,185 @@
             </div>
         </div>
     </div>
+    </div>
 
     <script>
+        const SUPABASE_URL = 'https://ozbxqvfdjdjudflgmvdz.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96YnhxdmZkamRqdWRmbGdtdmR6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5NDMxOTUsImV4cCI6MjA5MjUxOTE5NX0.JpZHpxYIUojHUSlLAVL1rVv7-D9kyZpzQzA6JXiSRuk';
+        const { createClient } = supabase;
+        const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let currentSession = null;
         let isEditMode = false;
+        let syncTimer = null;
         const STORAGE_KEY = 's2_contact_draft';
 
-        // 初始化：網頁載入後載入草稿
-        window.addEventListener('DOMContentLoaded', () => {
-            loadDraft();
-            
-            // 監聽所有編輯欄位，失焦時自動存檔
-            document.querySelectorAll('.editable-field').forEach(field => {
-                field.addEventListener('blur', () => {
-                    saveDraft();
-                });
-            });
+        db.auth.onAuthStateChange((event, session) => {
+          if (event === 'PASSWORD_RECOVERY') {
+            const newPassword = prompt('請設定您的新密碼（至少8字元）：');
+            if (newPassword) {
+              db.auth.updateUser({ password: newPassword }).then(({ error }) => {
+                if (error) alert('密碼設定失敗：' + error.message);
+                else alert('密碼已設定，請重新登入。');
+              });
+            }
+            return;
+          }
+          currentSession = session;
+          if (session) { showApp(session.user); loadFromSupabase(); }
+          else { showLogin(); }
         });
 
-        function toggleEditMode() {
-            isEditMode = !isEditMode;
-            const btn = document.getElementById('editToggle');
-            const btnText = document.getElementById('btnText');
-            const editFields = document.querySelectorAll('.editable-field');
-            const body = document.body;
-
-            if (isEditMode) {
-                btn.classList.replace('bg-blue-600', 'bg-emerald-600');
-                btnText.innerText = '完成編輯';
-                body.classList.add('edit-mode');
-                editFields.forEach(f => f.setAttribute('contenteditable', 'true'));
-            } else {
-                btn.classList.replace('bg-emerald-600', 'bg-blue-600');
-                btnText.innerText = '開啟編輯模式';
-                body.classList.remove('edit-mode');
-                editFields.forEach(f => f.setAttribute('contenteditable', 'false'));
-                saveDraft(); // 切換回來時也確保儲存
-            }
+        function showLogin() {
+          document.getElementById('auth-screen').style.display = 'flex';
+          document.getElementById('app-screen').style.display = 'none';
         }
 
-        // 儲存目前所有內容到 LocalStorage
+        function showApp(user) {
+          document.getElementById('auth-screen').style.display = 'none';
+          document.getElementById('app-screen').style.display = 'block';
+          const badge = document.getElementById('user-email-display');
+          if (badge) { badge.textContent = user.email; badge.classList.remove('hidden'); }
+        }
+
+        async function handleLogin() {
+          const email = document.getElementById('auth-email').value.trim();
+          const password = document.getElementById('auth-password').value;
+          const errEl = document.getElementById('auth-error');
+          errEl.textContent = '';
+          errEl.style.color = '#ef4444';
+          if (!email || !password) { errEl.textContent = '請輸入電子郵件和密碼'; return; }
+          const { error } = await db.auth.signInWithPassword({ email, password });
+          if (error) { errEl.textContent = '登入失敗：帳號或密碼錯誤'; }
+        }
+
+        async function handleLogout() {
+          if (!confirm('確定要登出嗎？')) return;
+          clearTimeout(syncTimer);
+          localStorage.removeItem(STORAGE_KEY);
+          await db.auth.signOut();
+        }
+
+        async function handleForgotPassword() {
+          const email = document.getElementById('auth-email').value.trim();
+          const errEl = document.getElementById('auth-error');
+          if (!email) { errEl.textContent = '請先填寫電子郵件'; return; }
+          const { error } = await db.auth.resetPasswordForEmail(email);
+          if (error) { errEl.textContent = '寄送失敗，請確認電子郵件是否正確'; }
+          else { errEl.style.color = '#16a34a'; errEl.textContent = '已寄出密碼重設信，請查收'; }
+        }
+
+        function collectFieldData() {
+          const data = {};
+          document.querySelectorAll('.editable-field').forEach(field => {
+            const key = field.getAttribute('data-key');
+            if (key) data[key] = field.innerHTML;
+          });
+          return data;
+        }
+
+        function applyDraftData(data) {
+          document.querySelectorAll('.editable-field').forEach(field => {
+            const key = field.getAttribute('data-key');
+            if (key && data[key] !== undefined) field.innerHTML = data[key];
+          });
+        }
+
         function saveDraft() {
-            const data = {};
-            document.querySelectorAll('.editable-field').forEach(field => {
-                const key = field.getAttribute('data-key');
-                if (key) {
-                    data[key] = field.innerHTML;
-                }
-            });
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            console.log('草稿已自動儲存');
+          const data = collectFieldData();
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          if (currentSession) {
+            clearTimeout(syncTimer);
+            syncTimer = setTimeout(() => syncToSupabase(data), 1500);
+          }
         }
 
-        // 從 LocalStorage 載入內容
-        function loadDraft() {
+        async function syncToSupabase(data) {
+          const { error } = await db.from('contact_drafts').upsert(
+            { user_id: currentSession.user.id, draft_data: data },
+            { onConflict: 'user_id' }
+          );
+          if (error) { showStatus('雲端同步失敗，內容已暫存於本地'); console.error(error); }
+          else { showStatus('已同步至雲端 ✓'); }
+        }
+
+        async function loadFromSupabase() {
+          const { data, error } = await db.from('contact_drafts')
+            .select('draft_data').eq('user_id', currentSession.user.id).maybeSingle();
+          if (!error && data?.draft_data && Object.keys(data.draft_data).length > 0) {
+            applyDraftData(data.draft_data);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data.draft_data));
+            showStatus('已從雲端載入上次內容');
+          } else {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    document.querySelectorAll('.editable-field').forEach(field => {
-                        const key = field.getAttribute('data-key');
-                        if (key && data[key]) {
-                            field.innerHTML = data[key];
-                        }
-                    });
-                    showStatus('已回復上次未存檔內容');
-                } catch (e) {
-                    console.error('載入草稿失敗', e);
-                }
-            }
+            if (saved) { try { applyDraftData(JSON.parse(saved)); showStatus('已回復本地暫存內容'); } catch(e) {} }
+          }
         }
 
-        // 清除暫存內容 (重置回預設)
-        function clearDraft() {
-            if (confirm('確定要清除所有暫存編輯內容並重置嗎？此動作無法復原。')) {
-                localStorage.removeItem(STORAGE_KEY);
-                location.reload(); // 重新整理網頁以回復原始 HTML 狀態
-            }
+        async function clearDraft() {
+          if (!confirm('確定要清除所有暫存編輯內容並重置嗎？此動作無法復原。')) return;
+          localStorage.removeItem(STORAGE_KEY);
+          if (currentSession) {
+            await db.from('contact_drafts').upsert(
+              { user_id: currentSession.user.id, draft_data: {} },
+              { onConflict: 'user_id' }
+            );
+          }
+          location.reload();
         }
 
-        // 複製左側內容到右側
+        function toggleEditMode() {
+          isEditMode = !isEditMode;
+          const btn = document.getElementById('editToggle');
+          const btnText = document.getElementById('btnText');
+          const fields = document.querySelectorAll('.editable-field');
+          if (isEditMode) {
+            btn.classList.replace('bg-blue-600', 'bg-emerald-600');
+            btnText.innerText = '完成編輯';
+            document.body.classList.add('edit-mode');
+            fields.forEach(f => f.setAttribute('contenteditable', 'true'));
+          } else {
+            btn.classList.replace('bg-emerald-600', 'bg-blue-600');
+            btnText.innerText = '開啟編輯模式';
+            document.body.classList.remove('edit-mode');
+            fields.forEach(f => f.setAttribute('contenteditable', 'false'));
+            saveDraft();
+          }
+        }
+
         document.addEventListener('click', function(e) {
-            if (e.target.closest('.action-clone')) {
-                const leftPage = document.getElementById('page-left');
-                const rightPage = document.getElementById('page-right');
-                
-                if (leftPage && rightPage) {
-                    const leftFields = leftPage.querySelectorAll('.editable-field');
-                    const rightFields = rightPage.querySelectorAll('.editable-field');
-                    
-                    leftFields.forEach((lf) => {
-                        const lKey = lf.getAttribute('data-key');
-                        const rKey = lKey.replace('p1-', 'p2-');
-                        const targetField = rightPage.querySelector(`[data-key="${rKey}"]`);
-                        if (targetField) {
-                            targetField.innerHTML = lf.innerHTML;
-                        }
-                    });
-                    
-                    saveDraft();
-                    showStatus('已同步內容至右側並儲存');
-                }
+          if (e.target.closest('.action-clone')) {
+            const leftPage = document.getElementById('page-left');
+            const rightPage = document.getElementById('page-right');
+            if (leftPage && rightPage) {
+              leftPage.querySelectorAll('.editable-field').forEach(lf => {
+                const rKey = lf.getAttribute('data-key').replace('p1-', 'p2-');
+                const tf = rightPage.querySelector(`[data-key="${rKey}"]`);
+                if (tf) tf.innerHTML = lf.innerHTML;
+              });
+              saveDraft();
+              showStatus('已同步內容至右側並儲存');
             }
+          }
         });
 
         function showStatus(msg) {
-            const statusMsg = document.getElementById('statusMsg');
-            statusMsg.innerText = msg;
-            statusMsg.style.display = 'block';
-            setTimeout(() => { statusMsg.style.display = 'none'; }, 2500);
+          const el = document.getElementById('statusMsg');
+          el.innerText = msg;
+          el.style.display = 'block';
+          setTimeout(() => { el.style.display = 'none'; }, 2500);
         }
 
         function handlePrint() {
-            if (isEditMode) toggleEditMode();
-            window.print();
+          if (isEditMode) toggleEditMode();
+          window.print();
         }
+
+        window.addEventListener('DOMContentLoaded', () => {
+          document.querySelectorAll('.editable-field').forEach(field => {
+            field.addEventListener('blur', saveDraft);
+          });
+        });
     </script>
 </body>
 </html>
