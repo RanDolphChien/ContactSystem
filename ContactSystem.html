@@ -951,8 +951,15 @@
           errEl.textContent = '';
           errEl.style.color = '#ef4444';
           if (!email || !password) { errEl.textContent = '請輸入電子郵件和密碼'; return; }
+
+          if (currentSession && currentSession.user.email !== email) {
+            errEl.style.color = '#ea580c';
+            errEl.textContent = `⚠️ 警告：目前已有用戶 (${currentSession.user.email}) 登入。即將切換至新帳號 (${email})，本地草稿將保留。`;
+            errEl.style.marginBottom = '12px';
+          }
+
           const { error } = await db.auth.signInWithPassword({ email, password });
-          if (error) { errEl.textContent = '登入失敗：帳號或密碼錯誤'; }
+          if (error) { errEl.textContent = '登入失敗：帳號或密碼錯誤'; errEl.style.color = '#ef4444'; }
         }
 
         async function handleLogout() {
