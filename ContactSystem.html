@@ -938,16 +938,12 @@
         });
 
         async function ensureSessionRecord(userId, email) {
-          const { data: existingSession } = await db.from('user_sessions')
-            .select('*').eq('user_id', userId).maybeSingle();
+          const { error } = await db.from('user_sessions').upsert({
+            user_id: userId,
+            email: email
+          }, { onConflict: 'user_id' });
 
-          if (!existingSession) {
-            const { error } = await db.from('user_sessions').insert({
-              user_id: userId,
-              email: email
-            });
-            if (error) console.error('重新建立登入記錄失敗:', error);
-          }
+          if (error) console.error('確保登入記錄失敗:', error);
         }
 
         function showLogin() {
@@ -991,13 +987,13 @@
             return;
           }
 
-          const { error: insertError } = await db.from('user_sessions').insert({
+          const { error: upsertError } = await db.from('user_sessions').upsert({
             user_id: userId,
             email: email
-          });
+          }, { onConflict: 'user_id' });
 
-          if (insertError) {
-            console.error('建立登入記錄失敗:', insertError);
+          if (upsertError) {
+            console.error('建立登入記錄失敗:', upsertError);
             errEl.textContent = '建立登入記錄失敗，請稍後重試';
             await db.auth.signOut();
           }
