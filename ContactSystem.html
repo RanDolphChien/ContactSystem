@@ -10,10 +10,10 @@
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
         
         :root {
-            --primary-blue: #1e40af;
+            --primary-color: #000000;
             --light-blue-bg: #f0f7ff;
-            --border-gray: #e2e8f0;
-            --text-main: #1e293b;
+            --border-gray: #000000;
+            --text-main: #000000;
         }
 
         body {
@@ -46,7 +46,7 @@
         .a4-half-page {
             width: 148.5mm;
             height: 210mm;
-            padding: 5mm 12mm;
+            padding: 4mm 6mm;
             background: white;
             position: relative;
             box-sizing: border-box;
@@ -71,19 +71,19 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            border-bottom: 2px solid var(--primary-blue);
+            border-bottom: 2px solid var(--primary-color);
             padding-bottom: 6px;
-            margin-bottom: 12px;
+            margin-bottom: 6px;
         }
 
         .header-title {
             font-size: 14pt;
             font-weight: 800;
-            color: var(--primary-blue);
+            color: var(--primary-color);
         }
 
         .header-date {
-            font-size: 11pt;
+            font-size: 14pt;
             font-weight: 600;
         }
 
@@ -94,20 +94,21 @@
             display: flex;
             align-items: center;
             margin-bottom: 6px;
-            color: var(--primary-blue);
+            color: var(--primary-color);
             font-weight: 700;
-            font-size: 10.5pt;
+            font-size: 12pt;
         }
 
         .content-box {
-            border: 1px solid var(--border-gray);
+            border: 0.5px solid var(--border-gray);
             border-radius: 4px;
-            padding: 8px 12px;
-            margin-bottom: 12px;
+            padding: 4px 6px;
+            margin-bottom: 6px;
             line-height: 1.5;
-            font-size: 9.5pt;
+            font-size: 12pt;
             min-height: 40px;
-            color: #334155;
+            /* color: #334155; */
+            color: var(--primary-color);
         }
 
         /* 單字網格 */
@@ -121,9 +122,9 @@
 
         .vocab-item {
             border: 0.5px solid var(--border-gray);
-            padding: 2px 2px;
+            padding: 1px 1px;
             text-align: center;
-            font-size: 16pt;
+            font-size: 14pt;
             min-height: 30px;
             display: flex;
             align-items: center;
