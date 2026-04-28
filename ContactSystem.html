@@ -270,7 +270,10 @@
                     <div class="header-date">日期：<span class="editable-field" data-key="p1-date" contenteditable="false">2026/04/25</span></div>
                 </div>
 
-                <div class="section-header">☆ Weekly’s Lesson (本週上課內容)</div>
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>☆ Weekly’s Lesson (本週上課內容)</span>
+                    <button type="button" class="no-print" onclick="copyLessonToAll()" style="background-color: #10b981; color: white; font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; margin: 0;">複製到全部</button>
+                </div>
                 <div class="content-box">
                     <div class="editable-field" data-key="p1-lesson" contenteditable="false">
                         ☆Compass Reading :Topic 1 p.20-23<br>
@@ -280,7 +283,10 @@
                     </div>
                 </div>
 
-                <div class="section-header">▲ Today’s Homework (回家功課)</div>
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>▲ Today’s Homework (回家功課)</span>
+                    <button type="button" class="no-print" onclick="copyHomeworkToAll()" style="background-color: #10b981; color: white; font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; margin: 0;">複製到全部</button>
+                </div>
                 <div class="content-box">
                     <div class="editable-field" data-key="p1-homework" contenteditable="false">
                         ▲閱讀Compass Reading : p. 20-23<br>
@@ -289,7 +295,10 @@
                     </div>
                 </div>
 
-                <div class="section-header">★ Communication matters (聯絡事項)</div>
+                <div class="section-header" style="display: flex; justify-content: space-between; align-items: center;">
+                    <span>★ Communication matters (聯絡事項)</span>
+                    <button type="button" class="no-print" onclick="copyCommToAll()" style="background-color: #10b981; color: white; font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; font-weight: 600; margin: 0;">複製到全部</button>
+                </div>
                 <div class="content-box">
                     <div class="editable-field" data-key="p1-comm" contenteditable="false">
                         ★本學期有「說故事比賽」，請孩子在家也要練習自己選的故事，五月初將有說故事比賽的班內賽，每個人都要到前方說自己選的故事喲！上週已發給孩子紙本故事，並會利用學校APP把故事及錄音檔給家長。<br><br>
@@ -1288,6 +1297,63 @@
               }
             });
           });
+        }
+
+        function copyLessonToAll() {
+          const sourceField = document.querySelector('[data-key="p1-lesson"]');
+          if (!sourceField) return;
+
+          const html = sourceField.innerHTML;
+          const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
+          const content = text.replace(/\n/g, '<br>');
+
+          for (let page = 3; page <= 9; page += 2) {
+            const field = document.querySelector(`[data-key="p${page}-lesson"]`);
+            if (field) {
+              field.innerHTML = content;
+            }
+          }
+
+          saveDraft();
+          showStatus('課堂內容已複製到全部頁面');
+        }
+
+        function copyHomeworkToAll() {
+          const sourceField = document.querySelector('[data-key="p1-homework"]');
+          if (!sourceField) return;
+
+          const html = sourceField.innerHTML;
+          const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
+          const content = text.replace(/\n/g, '<br>');
+
+          for (let page = 3; page <= 9; page += 2) {
+            const field = document.querySelector(`[data-key="p${page}-homework"]`);
+            if (field) {
+              field.innerHTML = content;
+            }
+          }
+
+          saveDraft();
+          showStatus('功課已複製到全部頁面');
+        }
+
+        function copyCommToAll() {
+          const sourceField = document.querySelector('[data-key="p1-comm"]');
+          if (!sourceField) return;
+
+          const html = sourceField.innerHTML;
+          const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
+          const content = text.replace(/\n/g, '<br>');
+
+          for (let page = 3; page <= 9; page += 2) {
+            const field = document.querySelector(`[data-key="p${page}-comm"]`);
+            if (field) {
+              field.innerHTML = content;
+            }
+          }
+
+          saveDraft();
+          showStatus('聯絡事項已複製到全部頁面');
         }
 
         function copyVocabToAll() {
