@@ -1277,7 +1277,13 @@
               const evenField = document.querySelector(`[data-key="${evenKey}"]`);
               if (evenField) {
                 const html = field.innerHTML;
-                const text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]*>/g, '');
+                const text = html
+                  .replace(/<div[^>]*>/gi, '')
+                  .replace(/<\/div>/gi, '\n')
+                  .replace(/<br\s*\/?>/gi, '\n')
+                  .replace(/<[^>]*>/g, '')
+                  .replace(/\n+/g, '\n')
+                  .trim();
                 evenField.innerHTML = text.replace(/\n/g, '<br>');
               }
             });
